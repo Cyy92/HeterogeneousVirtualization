@@ -2,6 +2,4 @@
 	path = cluster-setup/components/nfs-subdir-external-provisioner
 	url = https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner
 
-[submodule "ks-installer"]
-	path = ks-installer
-	url = https://github.com/kubesphere/ks-installer
+
