@@ -1,0 +1,6 @@
+.idea
+results
+
+# GitHub Codespaces
+.venv/
+.vscode/
