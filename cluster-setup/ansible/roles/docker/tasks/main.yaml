@@ -1,0 +1,128 @@
+- name: Gather the package facts
+  become: true
+  package_facts:
+    manager: auto
+
+#- name: Prevent docker/kubernetes packages from being upgraded
+#  become: true
+#  when: "'docker-ce' in ansible_facts.packages and 'docker-ce-cli' in ansible_facts.packages and 'kubelet' in ansible_facts.packages and 'kubeadm' in ansible_facts.packages and 'kubectl' in ansible_facts.packages and 'nvidia-docker2' in ansible_facts.packages and 'nvidia-container-runtime' in ansible_facts.packages"
+#  dpkg_selections:
+#    name: "{{ item }}"
+#    selection: hold
+#  loop:
+#    - docker-ce
+#    - docker-ce-cli
+#    - kubelet
+#    - kubeadm
+#    - kubectl
+#    - nvidia-container-runtime
+#    - nvidia-docker2
+
+- name: Update and upgrade apt packages
+  become: true
+  when: "'docker-ce' not in ansible_facts.packages and 'docker-ce-cli' not in ansible_facts.packages and 'containerd.io' not in ansible_facts.packages and 'docker-compose-plugin' not in ansible_facts.packages"
+  apt:
+    upgrade: yes
+    update_cache: yes
+    cache_valid_time: 86400
+
+- name: Install packages to allow apt to use a repository over HTTPS
+  become: true
+  when: "'docker-ce' not in ansible_facts.packages and 'docker-ce-cli' not in ansible_facts.packages and 'containerd.io' not in ansible_facts.packages and 'docker-compose-plugin' not in ansible_facts.packages"
+  apt:
+    name: 
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    state: present
+    update_cache: no
+
+- name: Register status of directory path
+  when: "'docker-ce' not in ansible_facts.packages and 'docker-ce-cli' not in ansible_facts.packages and 'containerd.io' not in ansible_facts.packages and 'docker-compose-plugin' not in ansible_facts.packages"
+  stat:
+    path: /etc/apt/keyrings
+  register: keyring_path
+
+- name: Create directory for docker's official gpg key
+  become: true
+  when: "'docker-ce' not in ansible_facts.packages and 'docker-ce-cli' not in ansible_facts.packages and 'containerd.io' not in ansible_facts.packages and 'docker-compose-plugin' not in ansible_facts.packages and keyring_path.stat.isdir is not defined"
+  file:
+    path: /etc/apt/keyrings
+    mode: '0755'
+    state: directory
+
+- name: Add docker's official gpg key
+  become: true
+  when: "'docker-ce' not in ansible_facts.packages and 'docker-ce-cli' not in ansible_facts.packages and 'containerd.io' not in ansible_facts.packages and 'docker-compose-plugin' not in ansible_facts.packages"
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    keyring: /etc/apt/keyrings/docker.gpg
+    state: present
+
+- name: Set up the repository
+  become: true
+  when: "'docker-ce' not in ansible_facts.packages and 'docker-ce-cli' not in ansible_facts.packages and 'containerd.io' not in ansible_facts.packages and 'docker-compose-plugin' not in ansible_facts.packages"
+  apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu bionic stable"
+    filename: docker
+    state: present
+
+- name: Install docker
+  become: true
+  when: "'docker-ce' not in ansible_facts.packages and 'docker-ce-cli' not in ansible_facts.packages and 'containerd.io' not in ansible_facts.packages and 'docker-compose-plugin' not in ansible_facts.packages"
+  apt:
+    name: 
+      - docker-ce={{ docker_version }}
+      - docker-ce-cli={{ docker_cli_version }}
+      - containerd.io
+      - docker-compose-plugin
+    update_cache: no
+    state: present
+
+- name: Set insecure registries
+  become: true
+  when: "'docker-ce' not in ansible_facts.packages and 'docker-ce-cli' not in ansible_facts.packages and 'containerd.io' not in ansible_facts.packages and 'docker-compose-plugin' not in ansible_facts.packages"
+  template:
+    src: "daemon.json.j2"
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+
+- name: Daemon reload
+  become: true
+  when: "'docker-ce' not in ansible_facts.packages and 'docker-ce-cli' not in ansible_facts.packages and 'containerd.io' not in ansible_facts.packages and 'docker-compose-plugin' not in ansible_facts.packages"
+  systemd:
+    daemon_reload: yes
+
+- name: Restart docker
+  become: true
+  when: "'docker-ce' not in ansible_facts.packages and 'docker-ce-cli' not in ansible_facts.packages and 'containerd.io' not in ansible_facts.packages and 'docker-compose-plugin' not in ansible_facts.packages"
+  systemd:
+    state: restarted
+    name: docker
+
+- name: Login to registries
+  become: true
+  when: "'docker-ce' not in ansible_facts.packages and 'docker-ce-cli' not in ansible_facts.packages and 'containerd.io' not in ansible_facts.packages and 'docker-compose-plugin' not in ansible_facts.packages"
+  command: docker login -u {{ username }} -p {{ password }} {{ registries_server020 }}
+
+- name: Login to registries 
+  become: true
+  when: "'docker-ce' not in ansible_facts.packages and 'docker-ce-cli' not in ansible_facts.packages and 'containerd.io' not in ansible_facts.packages and 'docker-compose-plugin' not in ansible_facts.packages"
+  command: docker login -u {{ username }} -p {{ password }} {{ registries_server021 }}
+
+- name: Login to registries 
+  become: true
+  when: "'docker-ce' not in ansible_facts.packages and 'docker-ce-cli' not in ansible_facts.packages and 'containerd.io' not in ansible_facts.packages and 'docker-compose-plugin' not in ansible_facts.packages"
+  command: docker login -u {{ username }} -p {{ password }} {{ registries_server022 }}
+
+- name: Login to registries 
+  become: true
+  when: "'docker-ce' not in ansible_facts.packages and 'docker-ce-cli' not in ansible_facts.packages and 'containerd.io' not in ansible_facts.packages and 'docker-compose-plugin' not in ansible_facts.packages"
+  command: docker login -u {{ username }} -p {{ password }} {{ registries_server023 }}
+
+- name: Login to registries 
+  become: true
+  when: "'docker-ce' not in ansible_facts.packages and 'docker-ce-cli' not in ansible_facts.packages and 'containerd.io' not in ansible_facts.packages and 'docker-compose-plugin' not in ansible_facts.packages"
+  command: docker login -u {{ username }} -p {{ password }} {{ registries_server024 }}

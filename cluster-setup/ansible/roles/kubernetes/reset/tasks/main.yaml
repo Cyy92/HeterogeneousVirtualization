@@ -1,0 +1,17 @@
+- name: Reset Kubernetes component
+  become: true
+  command: "{{ item }}"
+  with_items:
+    - kubeadm reset --force --cri-socket unix:///var/run/crio/crio.sock
+    - systemctl stop kubelet
+    - systemctl stop docker
+    - systemctl disable docker
+    - rm -rf /var/lib/cni/
+    - rm -rf /var/lib/kubelet/*
+    - rm -rf /etc/cni/
+    - rm -rf /var/lib/etcd
+    - rm -rf /etc/kubernetes
+    - rm -rf $HOME/.kube
+    - systemctl start kubelet
+  ignore_errors: true
+

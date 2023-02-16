@@ -1,0 +1,7 @@
+---
+- hosts: deletion
+  gather_facts: true
+  any_errors_fatal: "{{ any_errors_fatal | default(true) }}"
+  become: true
+  roles:
+    - { role: kubernetes/delete, tags: deletion }

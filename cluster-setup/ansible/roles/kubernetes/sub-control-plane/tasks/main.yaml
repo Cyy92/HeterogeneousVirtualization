@@ -1,0 +1,78 @@
+- name: kubeadm | Check if kubeadm has already run
+  stat:
+    path: "/var/lib/kubelet/config.yaml"
+    get_attributes: no
+    get_checksum: no
+    get_mime: no
+  register: kubeadm_already_run
+
+- name: Reset Kubernetes component
+  become: true
+  when: not kubeadm_already_run.stat.exists
+  command: "{{ item }}"
+  with_items:
+    - kubeadm reset --force
+    - systemctl stop kubelet
+    - systemctl stop docker
+    - rm -rf /var/lib/cni/
+    - rm -rf /var/lib/kubelet/*
+    - rm -rf /etc/cni/
+    - rm -rf /etc/kubernetes
+    - rm -rf $HOME/.kube
+    - ifconfig docker0 down
+    - systemctl start kubelet
+    - systemctl start docker
+  ignore_errors: true
+  register: reset_cluster
+
+- name: Swap Off
+  become: true
+  when: not kubeadm_already_run.stat.exists
+  command: swapoff -a
+
+- name: Copy join command script file to remote server
+  become: true
+  when: not kubeadm_already_run.stat.exists
+  copy:
+    src: /etc/kubernetes/script/join-control-plane-node.sh
+    dest: /tmp/join-control-plane-node.sh
+    owner: "{{ ansible_user | default(ansible_user_id) }}"
+    group: "{{ ansible_user | default(ansible_user_id) }}"
+    mode: 0777
+
+- name: Join node to control-plane
+  become: true
+  when: not kubeadm_already_run.stat.exists
+  command: sh /tmp/join-control-plane-node.sh
+  register: join_control_plane_node
+
+- name: Wait for master to be ready
+  become: true
+  when: not kubeadm_already_run.stat.exists
+  command: >-
+    kubectl wait --for=condition=Ready nodes {{ item }} --timeout=600s
+  register: master_ready
+  with_items: "{{ groups['sub-control-plane'] }}"
+
+- name: Register status of directory path
+  when: not kubeadm_already_run.stat.exists
+  stat:
+    path: .kube/
+  register: kube_path
+
+- name: Create kubernetes config directory
+  become: true
+  when: kube_path.stat.isdir is not defined and not kubeadm_already_run.stat.exists
+  file:
+    path: .kube/
+    state: directory
+
+- name: Copy kubernetes config to directory
+  become: true
+  when: not kubeadm_already_run.stat.exists
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: .kube/config
+    owner: "{{ ansible_user | default(ansible_user_id) }}"
+    group: "{{ ansible_user | default(ansible_user_id) }}"
+    remote_src: true

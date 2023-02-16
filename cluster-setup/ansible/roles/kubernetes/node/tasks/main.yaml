@@ -1,0 +1,54 @@
+- name: kubeadm | Check if kubeadm has already run
+  stat:
+    path: "/var/lib/kubelet/config.yaml"
+    get_attributes: no
+    get_checksum: no
+    get_mime: no
+  register: kubeadm_already_run
+
+- name: Reset Kubernetes component
+  when: not kubeadm_already_run.stat.exists
+  become: true
+  command: "{{ item }}"
+  with_items:
+    - kubeadm reset --force --cri-socket unix:///var/run/crio/crio.sock
+    - systemctl stop kubelet
+      #- systemctl stop docker
+      #- systemctl disable docker
+    - rm -rf /var/lib/cni/
+    - rm -rf /var/lib/kubelet/*
+    - rm -rf /etc/cni/
+    - rm -rf /etc/kubernetes
+    - rm -rf $HOME/.kube
+    - systemctl start kubelet
+  ignore_errors: true
+  register: reset_cluster
+
+- name: Swap Off
+  become: true
+  when: not kubeadm_already_run.stat.exists
+  command: swapoff -a
+
+- name: Copy join command script file to remote server
+  become: true
+  when: not kubeadm_already_run.stat.exists
+  copy:
+    src: /etc/kubernetes/script/join-node.sh
+    dest: /tmp/join-node.sh
+    owner: "{{ ansible_user | default(ansible_user_id) }}"
+    group: "{{ ansible_user | default(ansible_user_id) }}"
+    mode: 0777
+
+- name: Join node to control-plane
+  become: true
+  when: not kubeadm_already_run.stat.exists
+  command: sh /tmp/join-node.sh
+  register: join_node
+
+- name: Restart crio
+  become: true
+  when: not kubeadm_already_run.stat.exists and join_node is succeeded
+  systemd:
+    state: restarted
+    daemon_reload: true
+    name: crio 

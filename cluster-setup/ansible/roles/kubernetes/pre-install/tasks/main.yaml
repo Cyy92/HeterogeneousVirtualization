@@ -1,0 +1,41 @@
+- name: Gather the package facts
+  become: true
+  package_facts:
+    manager: auto
+
+- name: Install essential package for kubernetes
+  become: true
+  when: "'kubeadm' not in ansible_facts.packages and 'kubectl' not in ansible_facts.packages and 'kubelet' not in ansible_facts.packages and 'kubernetes-cni' not in ansible_facts.packages"
+  apt:
+    name:
+      - apt-transport-https
+      - curl
+    state: present
+    update_cache: no
+
+- name: Add gpg key for kubernetes
+  become: true
+  when: "'kubeadm' not in ansible_facts.packages and 'kubectl' not in ansible_facts.packages and 'kubelet' not in ansible_facts.packages and 'kubernetes-cni' not in ansible_facts.packages"
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+
+- name: Set up the repository
+  become: true
+  when: "'kubeadm' not in ansible_facts.packages and 'kubectl' not in ansible_facts.packages and 'kubelet' not in ansible_facts.packages and 'kubernetes-cni' not in ansible_facts.packages"
+  apt_repository:
+    repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+    filename: kubernetes
+    state: present
+
+- name: Install kubernetes packages
+  become: true
+  when: "'kubeadm' not in ansible_facts.packages and 'kubectl' not in ansible_facts.packages and 'kubelet' not in ansible_facts.packages and 'kubernetes-cni' not in ansible_facts.packages"
+  apt:
+    name: 
+      - kubelet={{ kubelet_version }}
+      - kubectl={{ kubectl_version }}
+      - kubeadm={{ kubeadm_version }}
+      - kubernetes-cni
+    update_cache: no
+    state: present

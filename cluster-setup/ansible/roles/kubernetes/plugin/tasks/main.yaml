@@ -1,0 +1,27 @@
+- name: Register status of directory path
+  stat:
+    path: /etc/kubernetes/plugin/
+  register: nvidia_plugin_path
+
+- name: Create kubernetes nvidia device plugin directory
+  become: true
+  when: nvidia_plugin_path.stat.isdir is not defined
+  file:
+    path: /etc/kubernetes/plugin/
+    state: directory
+
+- name: Copy nvidia device plugin yaml to directory
+  become: true
+  template:
+    src: "nvidia-device-plugin.yaml.j2"
+    dest: /etc/kubernetes/plugin/nvidia-device-plugin.yaml
+    owner: root
+    group: root
+
+- name: Deploy nvidia device plugin
+  become: true
+  ignore_errors: true
+  command: >-
+    kubectl create
+    -f /etc/kubernetes/plugin/nvidia-device-plugin.yaml
+

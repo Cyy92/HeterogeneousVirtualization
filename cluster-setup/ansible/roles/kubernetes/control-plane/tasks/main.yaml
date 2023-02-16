@@ -1,0 +1,181 @@
+- name: kubeadm | Check if kubeadm has already run
+  stat:
+    path: "/var/lib/kubelet/config.yaml"
+    get_attributes: no
+    get_checksum: no
+    get_mime: no
+  register: kubeadm_already_run
+
+- name: Reset Kubernetes component
+  become: true
+  command: "{{ item }}"
+  with_items:
+    - kubeadm reset --force --cri-socker unix:///var/run/crio/crio.sock
+    - systemctl stop kubelet
+    - rm -rf /var/lib/cni/
+    - rm -rf /var/lib/kubelet/*
+    - rm -rf /etc/cni/
+    - rm -rf /etc/kubernetes
+    - rm -rf $HOME/.kube
+    - systemctl start kubelet
+  ignore_errors: true
+  when: not kubeadm_already_run.stat.exists 
+
+- name: Swap Off
+  become: true
+  when: not kubeadm_already_run.stat.exists
+  command: swapoff -a
+
+- name: Init Kubernetes cluster
+  become: true
+  when: not kubeadm_already_run.stat.exists
+  command: >-
+    kubeadm init --control-plane-endpoint {{ master_ip }}:6443
+    --upload-certs
+    --pod-network-cidr {{ pod_network_cidr }}
+    --cri-socket=unix:///var/run/crio/crio.sock
+    --ignore-preflight-errors=NumCPU
+    --v=2
+  register: init_cluster
+
+- name: kubeadm | Token list
+  become: true
+  #when: not kubeadm_already_run.stat.exists
+  shell:
+    cmd: kubeadm token list | grep authentication
+  register: kubeadm_token
+
+- name: kubeadm | Get token
+  become: true
+  when: kubeadm_token.stdout != ""
+  shell:
+    cmd: kubeadm token list | grep authentication | cut -f 1 -d " "
+  register: kubeadm_get_token
+
+- name: kubeadm | Get hash
+  become: true
+  when: kubeadm_token.stdout != ""
+  shell:
+    cmd: openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
+  register: kubeadm_get_hash
+
+- name: Register status of directory path
+  when: not kubeadm_already_run.stat.exists
+  stat:
+    path: .kube/
+  register: kube_path
+
+- name: Create kubernetes config directory
+  become: true
+  when: kube_path.stat.isdir is not defined and not kubeadm_already_run.stat.exists
+  file:
+    path: .kube/
+    state: directory
+
+- name: Copy kubernetes config to directory
+  become: true
+  when: init_cluster is succeeded and not kubeadm_already_run.stat.exists
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: .kube/config
+    owner: "{{ ansible_user | default(ansible_user_id) }}"
+    group: "{{ ansible_user | default(ansible_user_id) }}"
+    remote_src: true
+
+- name: Set net bridge
+  become: true
+  when: init_cluster is succeeded and not kubeadm_already_run.stat.exists
+  command: sysctl net.bridge.bridge-nf-call-iptables=1
+
+- name: Register status of directory path
+  when: not kubeadm_already_run.stat.exists
+  stat:
+    path: /etc/kubernetes/network/flannel/
+  register: flannel_path
+
+- name: Create kubernetes network plugin directory
+  become: true
+  when: init_cluster is succeeded and flannel_path.stat.isdir is not defined and not kubeadm_already_run.stat.exists
+  file:
+    path: /etc/kubernetes/network/flannel/
+    state: directory
+
+- name: Copy flannel yaml to directory
+  become: true
+  when: init_cluster is succeeded and not kubeadm_already_run.stat.exists
+  template:
+    src: "kube-flannel.yaml.j2"
+    dest: /etc/kubernetes/network/flannel/kube-flannel.yaml
+    owner: root
+    group: root
+
+- name: Deploy flannel
+  when: init_cluster is succeeded and not kubeadm_already_run.stat.exists
+  command: >-
+    kubectl create
+    -f /etc/kubernetes/network/flannel/kube-flannel.yaml
+
+- name: Create directory for join script
+  become: true
+  when: init_cluster is succeeded and not kubeadm_already_run.stat.exists
+  file:
+    path: /etc/kubernetes/script/
+    state: directory
+
+- name: Copy join command to script file if token exists
+  become: true
+  when: init_cluster is succeeded and kubeadm_token.stdout != ""
+  copy:
+    dest: /etc/kubernetes/script/join-node.sh
+    content: |
+      kubeadm join {{ master_ip }}:6443 --token {{ kubeadm_get_token.stdout }} --discovery-token-ca-cert-hash sha256:{{ kubeadm_get_hash.stdout }} --cri-socket=unix:///var/run/crio/crio.sock
+    owner: "{{ ansible_user | default(ansible_user_id) }}"
+    group: "{{ ansible_user | default(ansible_user_id) }}"
+
+- name: Generate join command if token not exists
+  become: true
+  when: init_cluster is succeeded and kubeadm_token.stdout == ""
+  command: kubeadm token create --print-join-command
+  register: join_command
+
+- name: Copy join command to script file if token not exists
+  become: true
+  when: init_cluster is succeeded and join_command is defined and kubeadm_token.stdout == ""
+  copy:
+    content: |
+      {{ join_command.stdout_lines[0] }} --cri-socket=unix:///var/run/crio/crio.sock
+    dest: /etc/kubernetes/script/join-node.sh
+    owner: "{{ ansible_user | default(ansible_user_id) }}"
+    group: "{{ ansible_user | default(ansible_user_id) }}"
+
+#- name: Check whether cert key exists or not
+#  become: true
+#  shell:
+#    cmd: kubeadm token list | grep kubeadm-certs
+#  register: kubeadm_cert
+#
+#- name: Generate cert key
+#  become: true
+#  when: init_cluster is succeeded and kubeadm_cert.stdout == ""
+#  command: kubeadm init phase upload-certs --upload-certs
+#  register: kubeadm_cert_key
+#
+#- name: Copy join command for control-plane to script file if token exists
+#  become: true
+#  when: init_cluster is succeeded and kubeadm_cert_key is defined and kubeadm_token.stdout != ""
+#  copy:
+#    dest: /etc/kubernetes/script/join-control-plane-node.sh
+#    content: |
+#      kubeadm join {{ lb_ip }}:16443 --token {{ kubeadm_get_token.stdout }} --discovery-token-ca-cert-hash sha256:{{ kubeadm_get_hash.stdout }} --cri-socket=unix:///var/run/crio/crio.sock --control-plane --certificate-key {{ kubeadm_cert_key.stdout_lines[2] }}
+#    owner: "{{ ansible_user | default(ansible_user_id) }}"
+#    group: "{{ ansible_user | default(ansible_user_id) }}"
+#
+#- name: Copy join command for control-plane to script file if token not exists
+#  become: true
+#  when: init_cluster is succeeded and kubeadm_cert_key is defined and kubeadm_token.stdout == ""
+#  copy:
+#    dest: /etc/kubernetes/script/join-control-plane-node.sh
+#    content: |
+#      {{ join_command.stdout_lines[0] }} --control-plane --certificate-key {{ kubeadm_cert_key.stdout_lines[2] }} --cri-socket=unix:///var/run/crio/crio.sock
+#    owner: "{{ ansible_user | default(ansible_user_id) }}"
+#    group: "{{ ansible_user | default(ansible_user_id) }}"    

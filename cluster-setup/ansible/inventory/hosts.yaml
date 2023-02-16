@@ -1,0 +1,29 @@
+[all]
+master ansible_host=10.0.2.101 ip=10.0.2.101 ansible_user=root
+worker ansible_host=10.0.2.102 ip=10.0.2.102 ansible_user=root
+
+[control-plane]
+master
+
+[sub-control-plane]
+#ketiops-master-2
+#ketiops-master-3
+
+[node]
+worker
+
+[gpu-node]
+
+[kube-cluster:children]
+control-plane
+sub-control-plane
+node
+
+[env-others]
+
+[env-inferencenode]
+
+[deletion]
+
+[gpu-node:vars]
+ansible_python_interpreter=/usr/bin/python3

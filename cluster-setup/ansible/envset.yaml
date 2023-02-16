@@ -1,0 +1,17 @@
+---
+- hosts: env-others
+  gather_facts: true
+  any_errors_fatal: "{{ any_errors_fatal | default(true) }}"
+  become: true
+  roles:
+    - { role: docker, tags: docker }
+    - { role: kubernetes/pre-install, tags: preinstall }
+
+- hosts: env-inferencenode
+  gather_facts: true
+  any_errors_fatal: "{{ any_errors_fatal | default(true) }}"
+  become: true
+  roles:
+    - { role: docker, tags: docker }
+    - { role: kubernetes/pre-install, tags: preinstall }
+    - { role: nvidia-docker, tags: nvidia-docker }

@@ -1,0 +1,144 @@
+- name: Gather the package facts
+  become: true
+  package_facts:
+    manager: auto
+
+- name: Load module for forwarding ipv4
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  template:
+    src: "k8s.conf.j2"
+    dest: /etc/modules-load.d/k8s.conf
+    owner: root
+    group: root
+
+- name: Verify that module loaded
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  command: "{{ item }}"
+  with_items:
+    - modprobe overlay
+    - modprobe br_netfilter
+
+- name: Set sysctl parameter
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  template:
+    src: "10-k8s.conf.j2"
+    dest: /etc/sysctl.d/10-k8s.conf
+    owner: root
+    group: root
+
+- name: Apply sysctl parameter
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  command: sysctl --system
+
+- name: Register status of directory path
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  stat:
+    path: /usr/share/keyrings
+  register: keyring_path
+
+- name: Create directory for cri-o's official gpg key
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages and keyring_path.stat.isdir is not defined"
+  file:
+    path: /usr/share/keyrings
+    mode: '0755'
+    state: directory
+
+- name: Add libcontainers archive official gpg key
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  apt_key:
+    url: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/{{ crio_required_os }}/Release.key
+    keyring: /usr/share/keyrings/libcontainers-archive-keyring.gpg
+    state: present
+
+- name: Add libcontainers cri-o archive official gpg key
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  apt_key:
+    url: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/{{ crio_version }}/{{ crio_required_os }}/Release.key
+    keyring: /usr/share/keyrings/libcontainers-crio-archive-keyring.gpg
+    state: present
+
+- name: Add libcontainers source repository into sources list
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/libcontainers-archive-keyring.gpg] https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/{{ crio_required_os }}/ /"
+    state: present
+    filename: devel:kubic:libcontainers:stable
+
+- name: Add cri-o source repository into sources list
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/libcontainers-crio-archive-keyring.gpg] https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/{{ crio_version }}/{{ crio_required_os }}/ /"
+    state: present
+    filename: devel:kubic:libcontainers:stable:cri-o:{{ crio_version }}
+
+- name: Update and upgrade apt packages
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  apt:
+    upgrade: yes
+    update_cache: yes
+    cache_valid_time: 86400
+
+- name: Install cri-o and cri-o-runc packages
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  apt:
+    name:
+      - cri-o
+      - cri-o-runc
+    update_cache: no
+    state: present
+
+- name: Create graphroot directory for cri-o
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  file:
+    path: /data/containers/storage
+    mode: '0755'
+    state: directory
+
+- name: Create runroot directory for cri-o
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  file:
+    path: /data/containers/tmp
+    mode: '0755'
+    state: directory
+
+- name: Set insecure registries and change cri-o root directory
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  command: "{{ item }}"
+  with_items:
+    - sed -i -e "468s:^#::" -e 's/^ *//g' -e '468s/$/"10.0.1.150:5000"]/' /etc/crio/crio.conf
+    - sed -i -e 's@/run/containers/storage@/data/containers/tmp@g' -e 's@/var/lib/containers/storage@/data/containers/storage@g' /etc/containers/storage.conf
+
+- name: Set cri-o cni plugin
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  command: sed -i -e "490s:^#::" -e 's/^ *//g' -e "491s:^#::" -e 's/^ *//g' -e "492s:^#::" -e 's/^ *//g' /etc/crio/crio.conf
+
+- name: Daemon reload
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  systemd:
+    daemon_reload: yes
+
+- name: Start cri-o
+  become: true
+  when: "'cri-o' not in ansible_facts.packages and 'cri-o-runc' not in ansible_facts.packages"
+  systemd:
+    state: started
+    name: crio
+    enabled: true
+    masked: no

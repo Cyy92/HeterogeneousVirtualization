@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -eu
+
+source /etc/os-release
+
+nv_os_release="${ID}${VERSION_ID}"
+
+cat <<EOF
+{
+  "nv_os_release": "${nv_os_release}"
+}
+EOF

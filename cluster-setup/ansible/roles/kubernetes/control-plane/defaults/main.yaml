@@ -1,0 +1,6 @@
+---
+pod_network_cidr: 10.224.0.0/16
+
+master_ip: "{{ hostvars[groups['control-plane'][0]]['ansible_default_ipv4']['address'] | default(groups['control-plane'][0]) }}"
+lb_ip: 10.0.1.101
+

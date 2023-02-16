@@ -1,0 +1,14 @@
+---
+docker_version: 5:20.10.18~3-0~ubuntu-bionic
+docker_cli_version: "{{ docker_version }}"
+
+# private docker registry ip address and port number
+registries_server020: 101.101.209.47:30006
+registries_server021: 101.101.216.174:30009
+registries_server022: 49.50.172.102:30012
+registries_server023: 49.50.172.102:30012
+registries_server024: 115.85.183.25:30018
+
+# registry account
+username: admin
+password: Ketilinux1!

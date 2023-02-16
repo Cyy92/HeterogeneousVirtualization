@@ -1,0 +1,29 @@
+- name: kubeadm | Check if kubeadm has already run
+  stat:
+    path: "/var/lib/kubelet/config.yaml"
+    get_attributes: no
+    get_checksum: no
+    get_mime: no
+  register: kubeadm_already_run
+
+- name: Wait for nodes to be ready
+  become: true
+  when: not kubeadm_already_run.stat.exists
+  command: >-
+    kubectl wait --for=condition=Ready nodes {{ item }} --timeout=600s
+  register: nodes_ready
+  with_items: "{{ groups['node'] }}"
+
+- name: Label node's role
+  become: true
+  when: nodes_ready is succeeded
+  command: >-
+    kubectl label nodes {{ item }} kubernetes.io/role=worker --overwrite
+  with_items: "{{ groups['node'] }}"
+
+- name: Label node type
+  become: true
+  when: nodes_ready is succeeded
+  command: >-
+    kubectl label nodes {{ item }} nodetype=gpunode --overwrite
+  with_items: "{{ groups['gpu-node'] }}"

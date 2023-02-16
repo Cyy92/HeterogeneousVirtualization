@@ -1,0 +1,67 @@
+- name: ensure facts directory exists
+  file:
+    path: "/etc/ansible/facts.d"
+    state: directory
+    recurse: yes
+    owner: "root"
+    group: "root"
+
+- name: setup custom facts
+  copy:
+    src: "etc/ansible/facts.d/nv_os_release.fact"
+    dest: "/etc/ansible/facts.d"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+
+- name: re-gather facts
+  setup: 
+    filter: ansible_local
+          
+- name: check distro
+  fail:
+    msg: "distro {{ ansible_facts['distribution'] }} not supported"
+  when: ansible_facts['distribution'] != 'Ubuntu'
+
+- name: Ubuntu pre-install tasks
+  include_tasks: ubuntu-pre-install.yaml
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Set insecure registries
+  become: true
+  template:
+    src: "daemon.json.j2"
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+
+- name: Daemon reload
+  become: true
+  systemd:
+    daemon_reload: yes
+
+- name: Restart docker
+  become: true
+  systemd:
+    state: restarted
+    name: docker
+
+- name: Login to registries
+  become: true
+  command: docker login -u {{ username }} -p {{ password }} {{ registries_server020 }}
+
+- name: Login to registries
+  become: true
+  command: docker login -u {{ username }} -p {{ password }} {{ registries_server021 }}
+
+- name: Login to registries
+  become: true
+  command: docker login -u {{ username }} -p {{ password }} {{ registries_server022 }}
+
+- name: Login to registries
+  become: true
+  command: docker login -u {{ username }} -p {{ password }} {{ registries_server023 }}
+
+- name: Login to registries
+  become: true
+  command: docker login -u {{ username }} -p {{ password }} {{ registries_server024 }}

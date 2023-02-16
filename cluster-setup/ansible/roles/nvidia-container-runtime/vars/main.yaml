@@ -1,0 +1,2 @@
+_ubuntu_repo_file_name: "nvidia-container-runtime.list"
+_ubuntu_repo_file_path: "/etc/apt/sources.list.d/{{ _ubuntu_repo_file_name }}"

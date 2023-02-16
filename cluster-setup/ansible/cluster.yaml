@@ -1,0 +1,50 @@
+---
+- hosts: kube-cluster
+  gather_facts: true
+  any_errors_fatal: "{{ any_errors_fatal | default(true) }}"
+  become: true
+  roles:
+   - { role: cri-o, tags: cri-o }
+   - { role: kubernetes/pre-install, tags: preinstall }
+#
+#- hosts: gpu-node
+#  gather_facts: true
+#  any_errors_fatal: "{{ any_errors_fatal | default(true) }}"
+#  become: true
+#  roles:
+#    - { role: nvidia-container-runtime, tags: nvidia-container-runtime }
+#
+- hosts: control-plane
+  gather_facts: true
+  any_errors_fatal: "{{ any_errors_fatal | default(true) }}"
+  become: true
+  roles:
+    - { role: kubernetes/control-plane, tags: master }
+
+#- hosts: sub-control-plane
+#  gather_facts: true
+#  any_errors_fatal: "{{ any_errors_fatal | default(true) }}"
+#  become: true
+#  roles:
+#    - { role: kubernetes/sub-control-plane, tags: sub-master }
+#
+- hosts: node
+  gather_facts: true
+  any_errors_fatal: "{{ any_errors_fatal | default(true) }}"
+  become: true
+  roles:
+    - { role: kubernetes/node, tags: node }
+
+- hosts: control-plane
+  gather_facts: true
+  any_errors_fatal: "{{ any_errors_fatal | default(true) }}"
+  become: true
+  roles:
+    - { role: kubernetes/node-label, tags: master }
+#
+#- hosts: control-plane
+#  gather_facts: true
+#  any_errors_fatal: "{{ any_errors_fatal | default(true) }}"
+#  become: true
+#  roles:
+#    - { role: kubernetes/plugin, tags: nvidia-device-plugin }

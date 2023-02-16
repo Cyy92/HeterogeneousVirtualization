@@ -1,0 +1,13 @@
+- name: Drain node for deletion
+  become: true
+  command: >-
+    kubectl drain {{ item }} --ignore-daemonsets --delete-local-data
+  ignore_errors: true
+  with_items: "{{ groups['deletion'] }}"
+
+- name: Delete node
+  become: true
+  command: >-
+    kubectl delete node {{ item }}
+  ignore_errors: true
+  with_items: "{{ groups['deletion'] }}"

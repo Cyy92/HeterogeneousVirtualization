@@ -1,0 +1,58 @@
+- name: Gather the package facts
+  become: true
+  package_facts:
+    manager: auto
+
+- name: Remove packages
+  when: "'nvidia-container-runtime' in ansible_facts.packages or 'nvidia-docker2' in ansible_facts.packages"
+  apt:
+    name:
+      - nvidia-docker2
+      - nvidia-container-runtime
+    state: absent
+    autoremove: yes
+    purge: yes
+
+- name: Add key
+  apt_key:
+    url: "{{ nvidia_container_runtime_repo_gpg_url }}"
+    state: present
+  when: "'nvidia-container-runtime' not in ansible_facts.packages"
+  environment: "{{proxy_env if proxy_env is defined else {}}}"
+
+- name: Add repo
+  when: "'nvidia-container-runtime' not in ansible_facts.packages"
+  get_url:
+    url: "{{ nvidia_container_runtime_repo_base_url }}/{{ ansible_local['nv_os_release']['nv_os_release'] }}/{{ _ubuntu_repo_file_name }}"
+    dest: "{{ _ubuntu_repo_file_path }}"
+    mode: 0644
+    owner: root
+    group: root
+  when: "nvidia_container_runtime_add_repo and 'nvidia-container-runtime' not in ansible_facts.packages"
+  environment: "{{proxy_env if proxy_env is defined else {}}}"
+
+- name: Install packages
+  when: "'nvidia-container-runtime' not in ansible_facts.packages"
+  apt:
+    name: 
+      - nvidia-container-runtime
+    state: present
+    update_cache: yes
+  environment: "{{proxy_env if proxy_env is defined else {}}}"
+
+- name: Set nvidia hook for cri-o
+  become: true
+  when: "'nvidia-container-runtime' not in ansible_facts.packages"
+  template:
+    src: "oci-nvidia-hook.json.j2"
+    dest: /usr/share/containers/oci/hooks.d/oci-nvidia-hook.json
+    owner: root
+    group: root
+
+- name: Restart cri-o
+  become: true
+  when: "'cri-o' in ansible_facts.packages and 'cri-o-runc' in ansible_facts.packages"
+  systemd:
+    state: restarted
+    daemon_reload: true
+    name: crio
