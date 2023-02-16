@@ -1,5 +1,0 @@
-[submodule "cluster-setup/components/nfs-subdir-external-provisioner"]
-	path = cluster-setup/components/nfs-subdir-external-provisioner
-	url = https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner
-
-
