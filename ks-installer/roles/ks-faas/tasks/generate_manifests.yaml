@@ -1,0 +1,7 @@
+---
+- name: FaaS | Getting ks-faas installation files
+  copy:
+    src: "{{ item }}"
+    dest: "{{ kubesphere_dir }}/"
+  loop:
+    - "faas"

@@ -35,6 +35,12 @@
       {%- if multicluster is defined and multicluster.clusterRole is defined and multicluster.clusterRole == 'host' %}
       kube-federation-system
       {%- endif %}
+      {%- if faas.enabled is defined and faas.enabled %}
+      kubesphere-faas-system
+      {%- endif %}
+      {%- if faas.enabled is defined and faas.enabled %}
+      kubesphere-faas-fn
+      {%- endif %}
 
 
 - set_fact:

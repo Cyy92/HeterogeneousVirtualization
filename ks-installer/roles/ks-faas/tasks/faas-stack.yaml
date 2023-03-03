@@ -1,0 +1,6 @@
+---
+- import_tasks: generate_manifests.yaml
+
+- import_tasks: faas.yaml
+  when:
+    - "status.faas is not defined or status.faas.status is not defined or status.faas.status != 'enabled'"

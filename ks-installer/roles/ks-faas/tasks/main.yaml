@@ -1,0 +1,3 @@
+- import_tasks: faas-stack.yaml
+  when:
+    - "faas.enabled is defined and faas.enabled == true"

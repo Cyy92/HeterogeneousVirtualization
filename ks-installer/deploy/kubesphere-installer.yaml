@@ -35,6 +35,16 @@ metadata:
 
 ---
 apiVersion: v1
+kind: Secret
+metadata:
+  name: regcred
+  namespace: kubesphere-system
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyIxMC4wLjEuMTUwOjUwMDAiOnsidXNlcm5hbWUiOiJhZG1pbiIsInBhc3N3b3JkIjoiS2V0aWxpbnV4MTEiLCJhdXRoIjoiWVdSdGFXNDZTMlYwYVd4cGJuVjRNVEU9In19fQ==
+type: kubernetes.io/dockerconfigjson
+
+---
+apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: ks-installer
@@ -290,9 +300,11 @@ spec:
         app: ks-installer
     spec:
       serviceAccountName: ks-installer
+      imagePullSecrets:
+        - name: regcred
       containers:
       - name: installer
-        image: kubespheredev/ks-installer:master
+        image: 10.0.1.150:5000/2021_hv/ks-installer:1.2.2
         imagePullPolicy: "Always"
         resources:
           limits:

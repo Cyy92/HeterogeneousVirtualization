@@ -1,0 +1,10 @@
+---
+- name: FaaS | Installing FaaS platform
+  shell: "{{ bin_dir }}/kubectl apply -f {{ kubesphere_dir }}/faas/{{ item }}"
+  loop:
+    - "core"
+  register: faas_result
+  failed_when: "faas_result.stderr and 'Warning' not in faas_result.stderr and 'spec.clusterIP' not in faas_result.stderr"
+  until: faas_result is succeeded
+  retries: 5
+  delay: 3
