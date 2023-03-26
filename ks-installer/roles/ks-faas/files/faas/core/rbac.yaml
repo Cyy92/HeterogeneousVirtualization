@@ -144,3 +144,42 @@ subjects:
 - kind: ServiceAccount
   name: storage-provisioner
   namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fxgateway-virt-clusterrole
+  namespace: kubesphere-faas-vm
+  labels:
+    kubevirt.io: ""
+rules:
+- apiGroups:
+  - kubevirt.io
+  resources:
+  - virtualmachineinstances
+  - virtualmachines
+  - virtualmachineinstancepresets
+  - virtualmachineinstancereplicasets
+  verbs:
+  - get
+  - delete
+  - create
+  - update
+  - patch
+  - list
+  - watch
+  - deletecollection
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fxgateway-virt-clusterrole
+  namespace: kubesphere-faas-vm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fxgateway-virt-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: fxgateway
+  namespace: kubesphere-faas-system

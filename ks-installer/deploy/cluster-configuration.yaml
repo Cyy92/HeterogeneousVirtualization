@@ -204,4 +204,4 @@ spec:
     # image: 'alpine:3.15' # There must be an nsenter program in the image
     timeout: 600         # Container timeout, if set to 0, no timeout will be used. The unit is seconds
   faas:
-    enabled: true
+    enabled: false
