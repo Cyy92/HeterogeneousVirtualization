@@ -1,37 +1,45 @@
 package virt
 
 import (
-	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
-	"syscall"
 
 	"github.com/Cyy92/HeterogeneousVirtualization/faas-cli/api/git"
 	"github.com/Cyy92/HeterogeneousVirtualization/faas-cli/cmd/runtime"
 	"github.com/Cyy92/HeterogeneousVirtualization/faas-cli/config"
-	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
 )
 
 var (
-	runtimeName string
-	handlerDir  string
-	handlerName string
-	gitrepo     string
+	runtimeName    string
+	handlerDir     string
+	handlerName    string
+	gitrepo        string
+	existdir       string
+	user           string
+	token          string
+	cloneRepoCmd   string
+	fxNewGitInfo   *config.NewGitInfo
+	fxExistGitInfo *config.ExistGitInfo
 )
 
 func init() {
 	initCmd.Flags().StringVarP(&cloudconfig, "config", "f", "", "Path to cloud config file describing VM(s)")
 	initCmd.Flags().StringVarP(&runtimeName, "runtime", "r", "", "Runtime(Language) to use")
-	initCmd.Flags().StringVarP(&gitrepo, "repo", "", "", "User's git repo name for upload binaries")
+	initCmd.Flags().StringVarP(&gitrepo, "reponame", "", "", "User's git repo name for upload binaries")
+	initCmd.Flags().StringVarP(&existdir, "exist-workingdir", "", "", "User's exist git working directory")
+	initCmd.Flags().StringVarP(&user, "user", "", "", "Git user name")
+	initCmd.Flags().StringVarP(&token, "token", "", "", "Git PW")
 	//initCmd.Flags().StringVarP(&domain, "dom", "d", "", "Set domain of VM")
+	initCmd.MarkFlagRequired("gitrepo")
 	initCmd.MarkFlagRequired("runtime")
-	initCmd.MarkFlagRequired("repo")
+	initCmd.MarkFlagRequired("user")
+	initCmd.MarkFlagRequired("token")
 }
 
 var initCmd = &cobra.Command{
@@ -74,6 +82,10 @@ func preRunInit(cmd *cobra.Command, args []string) error {
 		cloudconfig = config.DefaultCloudConfig
 	}
 
+	if gitrepo == "" {
+		return fmt.Errorf("please provide a git repo name")
+	}
+
 	if _, err := os.Stat(cloudconfig); err != nil {
 		if os.IsNotExist(err) {
 			fxVMs = config.NewVMs()
@@ -100,19 +112,22 @@ func runInit(cmd *cobra.Command, args []string) error {
 	if _, err := os.Stat(VM_Name); err == nil {
 		return fmt.Errorf("folder: %s already exists", VM_Name)
 	}
+	/*
+		input := bufio.NewReader(os.Stdin)
+		fmt.Print("GitHub Username: ")
+		username, _ := input.ReadString('\n')
 
-	input := bufio.NewReader(os.Stdin)
-	fmt.Print("GitHub Username: ")
-	username, _ := input.ReadString('\n')
+		fmt.Print("GitHub Password: ")
+		bytePassword, _ := terminal.ReadPassword(int(syscall.Stdin))
+		password := string(bytePassword)
+		fmt.Print("\n")
 
-	fmt.Print("GitHub Password: ")
-	bytePassword, _ := terminal.ReadPassword(int(syscall.Stdin))
-	password := string(bytePassword)
-	fmt.Print("\n")
-
-	client := git.NewClient(username, password)
-
-	git.CreateNewRepo(client, gitrepo)
+		client := git.NewClient(username, password)
+	*/
+	client := git.NewClient(user, token)
+	if existdir == "" {
+		git.CreateNewRepo(client, gitrepo)
+	}
 
 	r, err := runtime.GetRuntime(VM_Name, runtimeName, config.DefaultCloudInitDir)
 	if err == nil {
@@ -136,9 +151,20 @@ func runInit(cmd *cobra.Command, args []string) error {
 		},
 	}
 
-	cloneRepoCmd := "git clone https://github.com/" + strings.TrimSpace(username) + "/" + gitrepo + ".git" + " " + config.DefaultBinaryDir
-
+	cloneRepoCmd = "git clone https://github.com/" + strings.TrimSpace(user) + "/" + gitrepo + ".git" + " " + config.DefaultBinaryDir
 	fxVMs.Cmds = []string{"apt install -y git", cloneRepoCmd}
+
+	entries, err := os.ReadDir("./" + VM_Name + "/apps")
+	if err != nil {
+		return err
+	}
+
+	for _, e := range entries {
+		if e.IsDir() == true {
+			executeBin := "cd /binaries/apps/" + e.Name() + " && ./executor &"
+			fxVMs.Cmds = append(fxVMs.Cmds, executeBin)
+		}
+	}
 
 	confYaml, err := yaml.Marshal(&fxVMs)
 	if err != nil {
@@ -148,12 +174,16 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Printf("VM handler created in folder: %s\n", VM_Name+"/apps/src")
 	fmt.Printf("Rewrite the VM handler code in %s folder\n", VM_Name+"/apps/src")
 
-	initialConfErr := ioutil.WriteFile("./"+VM_Name+"/"+cloudconfig, []byte("#cloud-config\n\npackage_update: true\n\n"), 0600)
+	if err := os.Mkdir("./"+VM_Name+"/config", os.ModePerm); err != nil {
+		return err
+	}
+
+	initialConfErr := ioutil.WriteFile("./"+VM_Name+"/config/"+cloudconfig, []byte("#cloud-config\n\npackage_update: true\n\n"), 0600)
 	if initialConfErr != nil {
 		return fmt.Errorf("error writing config file %s\n", initialConfErr)
 	}
 
-	conf, err := os.OpenFile("./"+VM_Name+"/"+cloudconfig, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	conf, err := os.OpenFile("./"+VM_Name+"/config/"+cloudconfig, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("cannot open file with %s\n", err)
 	}
@@ -166,7 +196,53 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%s\n", err)
 	}
 
-	git.Clone(VM_Name, strings.TrimSpace(username), gitrepo)
+	if existdir == "" {
+		fxNewGitInfo = config.NewUser()
+		fxNewGitInfo.Git = []config.NewGit{
+			{
+				Username: user,
+				Token:    token,
+				Repo:     gitrepo,
+			},
+		}
+
+		git.Clone(VM_Name, strings.TrimSpace(user), gitrepo)
+
+		userinfoYaml, err := yaml.Marshal(&fxNewGitInfo)
+		if err != nil {
+			return err
+		}
+
+		userinfoWriteErr := ioutil.WriteFile("./"+VM_Name+"/config/userinfo.yaml", userinfoYaml, 0600)
+		if userinfoWriteErr != nil {
+			return fmt.Errorf("error writing config file %s", userinfoWriteErr)
+		}
+
+		fmt.Printf("Config files written \n")
+	} else {
+		fmt.Printf("hi")
+		fxExistGitInfo = config.ExistUser()
+		fxExistGitInfo.Git = []config.ExistGit{
+			{
+				Username:   user,
+				Token:      token,
+				Repo:       gitrepo,
+				WorkingDir: existdir,
+			},
+		}
+
+		userinfoYaml, err := yaml.Marshal(&fxExistGitInfo)
+		if err != nil {
+			return err
+		}
+
+		userinfoWriteErr := ioutil.WriteFile("./"+VM_Name+"/config/userinfo.yaml", userinfoYaml, 0600)
+		if userinfoWriteErr != nil {
+			return fmt.Errorf("error writing config file %s", userinfoWriteErr)
+		}
+
+		fmt.Printf("Config files written \n")
+	}
 
 	return nil
 }

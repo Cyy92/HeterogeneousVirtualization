@@ -44,6 +44,27 @@ type User struct {
 	AuthorizedKeys []string `yaml:"ssh_authorized_keys,omitempty"`
 }
 
+type NewGitInfo struct {
+	Git []NewGit `yaml:"git_info,omitempty"`
+}
+
+type NewGit struct {
+	Username string `yaml:"git_user,omitempty"`
+	Token    string `yaml:"token,omitempty"`
+	Repo     string `yaml:"repo_name,omitempty"`
+}
+
+type ExistGitInfo struct {
+	Git []ExistGit `yaml:"git_info,omitempty"`
+}
+
+type ExistGit struct {
+	Username   string `yaml:"username,omitempty"`
+	Token      string `yaml:"token,omitempty"`
+	Repo       string `yaml:"repo_name,omitempty"`
+	WorkingDir string `yaml:"exist_workingdir,omitempty"`
+}
+
 type Services struct {
 	Functions map[string]Function `yaml:"functions,omitempty"`
 	FaaS      FaaS                `yaml:"faas,omitempty"`

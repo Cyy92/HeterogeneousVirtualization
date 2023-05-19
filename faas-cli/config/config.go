@@ -26,6 +26,22 @@ func NewVMs() *VirtualMachines {
 	return &vms
 }
 
+func NewUser() *NewGitInfo {
+	var newinfo NewGitInfo
+
+	newinfo.Git = make([]NewGit, 0)
+
+	return &newinfo
+}
+
+func ExistUser() *ExistGitInfo {
+	var existinfo ExistGitInfo
+
+	existinfo.Git = make([]ExistGit, 0)
+
+	return &existinfo
+}
+
 func ParseConfigFile(file string) (*Services, error) {
 	fileData, err := ioutil.ReadFile(file)
 	if err != nil {
