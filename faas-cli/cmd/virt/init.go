@@ -220,7 +220,6 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 		fmt.Printf("Config files written \n")
 	} else {
-		fmt.Printf("hi")
 		fxExistGitInfo = config.ExistUser()
 		fxExistGitInfo.Git = []config.ExistGit{
 			{
