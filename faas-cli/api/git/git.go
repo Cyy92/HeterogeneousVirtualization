@@ -2,11 +2,14 @@ package git
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
 	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"gopkg.in/yaml.v2"
 )
 
 func Clone(vmName string, username string, repo string) {
@@ -34,40 +37,99 @@ func Clone(vmName string, username string, repo string) {
 	}
 }
 
-func Push(vmName string, username string, password string) {
-	repository, err := git.PlainOpen("./repository")
+func Push() {
+	// Extract exist working dir in userinfo.yaml
+	var data map[string]interface{}
+	yamlFile, err := ioutil.ReadFile("./config/userinfo.yaml")
 	if err != nil {
-		panic(err)
+		log.Fatalf("Failed to read YAML file: %v", err)
 	}
 
-	worktree, err := repository.Worktree()
+	err = yaml.Unmarshal(yamlFile, &data)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Failed to unmarshal YAML data: %v", err)
 	}
 
-	status, _ := worktree.Status()
-	if status.IsClean() {
-		fmt.Println("working tree clean !, there is no new commit")
+	gitInfo, ok := data["git_info"].([]interface{})
+	if !ok {
+		log.Fatal("Failed to get git_info from YAML data")
 	}
 
-	worktree.Add(".")
-	worktree.Commit("commit for binaries", &git.CommitOptions{
-		Author: &object.Signature{
-			Name: "FaaS Clients",
-			When: time.Now(),
+	var wd = gitInfo[0].(map[interface{}]interface{})["exist_workingdir"]
+	var username = gitInfo[0].(map[interface{}]interface{})["git_user"].(string)
+	var password = gitInfo[0].(map[interface{}]interface{})["token"].(string)
+
+	if wd == nil {
+		repository, err := git.PlainOpen("./repository")
+		if err != nil {
+			panic(err)
+		}
+
+		worktree, err := repository.Worktree()
+		if err != nil {
+			panic(err)
+		}
+
+		status, _ := worktree.Status()
+		if status.IsClean() {
+			fmt.Println("working tree clean !, there is no new commit")
+		}
+
+		worktree.Add(".")
+		worktree.Commit("commit for binaries", &git.CommitOptions{
+			Author: &object.Signature{
+				Name: "FaaS Clients",
+				When: time.Now(),
+			},
 		},
-	},
-	)
+		)
 
-	auth := &http.BasicAuth{
-		Username: username,
-		Password: password,
+		auth := &http.BasicAuth{
+			Username: username,
+			Password: password,
+		}
+
+		err = repository.Push(&git.PushOptions{
+			RemoteName: "origin",
+			Auth:       auth,
+		})
+
+		fmt.Println("Success push binaries into repository")
+	} else {
+		repository, err := git.PlainOpen(wd.(string))
+		if err != nil {
+			panic(err)
+		}
+
+		worktree, err := repository.Worktree()
+		if err != nil {
+			panic(err)
+		}
+
+		status, _ := worktree.Status()
+		if status.IsClean() {
+			fmt.Println("working tree clean !, there is no new commit")
+		}
+
+		worktree.Add(".")
+		worktree.Commit("commit for binaries", &git.CommitOptions{
+			Author: &object.Signature{
+				Name: "FaaS Clients",
+				When: time.Now(),
+			},
+		},
+		)
+
+		auth := &http.BasicAuth{
+			Username: username,
+			Password: password,
+		}
+
+		err = repository.Push(&git.PushOptions{
+			RemoteName: "origin",
+			Auth:       auth,
+		})
+
+		fmt.Println("Success push binaries into repository")
 	}
-
-	err = repository.Push(&git.PushOptions{
-		RemoteName: "origin",
-		Auth:       auth,
-	})
-
-	fmt.Println("Success push binaries into repository")
 }

@@ -37,8 +37,15 @@ var buildCmd = &cobra.Command{
 }
 
 func preRunBuild(cmd *cobra.Command, args []string) error {
-	if _, err := os.Stat("./apps/src"); err != nil {
-		return fmt.Errorf("Unable to build with %s\n", err)
+	entries, err := os.ReadDir("./apps")
+	if err != nil {
+		return err
+	}
+
+	for _, e := range entries {
+		if _, err := os.Stat("./apps/" + e.Name() + "/src"); err != nil {
+			return fmt.Errorf("Unable to build with %s\n", err)
+		}
 	}
 
 	return nil

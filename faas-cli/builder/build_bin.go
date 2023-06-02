@@ -1,48 +1,119 @@
 package builder
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"os"
+	"strings"
+
+	"gopkg.in/yaml.v2"
 )
 
 func BuildGoExecutor(verbose bool) (string, error) {
-	entries, err := os.ReadDir("./")
+	entries, err := os.ReadDir("./apps")
 	if err != nil {
 		return "Error while listing directories", err
 	}
 
-	//var builderr error
+	// Extract exist working dir in userinfo.yaml
+	var data map[string]interface{}
+	yamlFile, err := ioutil.ReadFile("./config/userinfo.yaml")
+	if err != nil {
+		log.Fatalf("Failed to read YAML file: %v", err)
+	}
+
+	err = yaml.Unmarshal(yamlFile, &data)
+	if err != nil {
+		log.Fatalf("Failed to unmarshal YAML data: %v", err)
+	}
+
+	gitInfo, ok := data["git_info"].([]interface{})
+	if !ok {
+		log.Fatal("Failed to get git_info from YAML data")
+	}
+
+	var wd = gitInfo[0].(map[interface{}]interface{})["exist_workingdir"]
+
 	var result string
 
-	for _, e := range entries {
-		if e.IsDir() == true && e.Name() != "repository" {
-			output := "bin/executor"
-			buildCmd := []string{"go", "build"}
-			buildCmd = append(buildCmd, "-o", output, ".")
-
-			if verbose {
-				if err := ExecCommandPipe("./"+e.Name(), buildCmd, os.Stdout, os.Stderr); err != nil {
-					return result, err
+	if wd == nil {
+		for _, e := range entries {
+			if e.IsDir() == true {
+				var tidy_result string
+				tidyCmd := []string{"go", "mod"}
+				tidyCmd = append(tidyCmd, "tidy")
+				if tidy_result, err = ExecCommand("./apps/"+e.Name(), tidyCmd); err != nil {
+					return tidy_result, err
 				}
-			} else {
-				if result, err = ExecCommand("./"+e.Name(), buildCmd); err != nil {
-					return result, err
+
+				output := "bin/executor"
+				buildCmd := []string{"go", "build"}
+				buildCmd = append(buildCmd, "-o", output, ".")
+
+				if verbose {
+					if err := ExecCommandPipe("./apps/"+e.Name(), buildCmd, os.Stdout, os.Stderr); err != nil {
+						return result, err
+					}
+				} else {
+					if result, err = ExecCommand("./apps/"+e.Name(), buildCmd); err != nil {
+						return result, err
+					}
+				}
+
+				if _, err := os.Stat("./repository/" + e.Name()); errors.Is(err, os.ErrNotExist) {
+					if err := os.Mkdir("./repository/"+e.Name(), os.ModePerm); err != nil {
+						return "", err
+					}
+				}
+
+				copyExecutorErr := copyBinaries("./apps/"+e.Name()+"/"+output, "./repository/"+e.Name()+"/executor")
+				if copyExecutorErr != nil {
+					return "", copyExecutorErr
+				}
+
+				permissionErr := os.Chmod("./repository/"+e.Name()+"/executor", 755)
+				if permissionErr != nil {
+					return "", permissionErr
 				}
 			}
+		}
+	} else {
+		for _, e := range entries {
+			if e.IsDir() == true {
+				output := "bin/executor"
+				buildCmd := []string{"go", "build"}
+				buildCmd = append(buildCmd, "-o", output, ".")
 
-			if err := os.Mkdir("./repository/"+e.Name(), os.ModePerm); err != nil {
-				return "", err
-			}
+				if verbose {
+					if err := ExecCommandPipe("./apps/"+e.Name(), buildCmd, os.Stdout, os.Stderr); err != nil {
+						return result, err
+					}
+				} else {
+					if result, err = ExecCommand("./apps/"+e.Name(), buildCmd); err != nil {
+						return result, err
+					}
+				}
 
-			copyExecutorErr := copyBinaries("./"+e.Name()+"/"+output, "./repository/"+e.Name()+"/executor")
-			if copyExecutorErr != nil {
-				return "", copyExecutorErr
-			}
+				destination := strings.ReplaceAll(fmt.Sprintf("%s %v", wd, "/"), " ", "")
 
-			permissionErr := os.Chmod("./repository/"+e.Name()+"/executor", 755)
-			if permissionErr != nil {
-				return "", permissionErr
+				if _, err := os.Stat(destination + e.Name()); errors.Is(err, os.ErrNotExist) {
+					if err := os.Mkdir(destination+e.Name(), os.ModePerm); err != nil {
+						return "", err
+					}
+				}
+
+				copyExecutorErr := copyBinaries("./apps/"+e.Name()+"/"+output, destination+e.Name()+"/executor")
+				if copyExecutorErr != nil {
+					return "", copyExecutorErr
+				}
+
+				permissionErr := os.Chmod(destination+e.Name()+"/executor", 755)
+				if permissionErr != nil {
+					return "", permissionErr
+				}
 			}
 		}
 	}
@@ -52,37 +123,82 @@ func BuildGoExecutor(verbose bool) (string, error) {
 }
 
 func BuildGoHandler(verbose bool) (string, error) {
-	entries, err := os.ReadDir("./")
+	entries, err := os.ReadDir("./apps")
 	if err != nil {
 		return "Error while listing directories", err
 	}
 
-	//var builderr error
+	// Extract exist working dir in userinfo.yaml
+	var data map[string]interface{}
+	yamlFile, err := ioutil.ReadFile("./config/userinfo.yaml")
+	if err != nil {
+		log.Fatalf("Failed to read YAML file: %v", err)
+	}
+
+	err = yaml.Unmarshal(yamlFile, &data)
+	if err != nil {
+		log.Fatalf("Failed to unmarshal YAML data: %v", err)
+	}
+
+	gitInfo, ok := data["git_info"].([]interface{})
+	if !ok {
+		log.Fatal("Failed to get git_info from YAML data")
+	}
+
+	var wd = gitInfo[0].(map[interface{}]interface{})["exist_workingdir"]
+
 	var result string
 
-	for _, e := range entries {
-		if e.IsDir() == true && e.Name() != "repository" {
-			output := "bin/handler"
-			buildCmd := []string{"go", "build"}
-			buildCmd = append(buildCmd, "-o", output, "-buildmode=plugin", "./src")
+	if wd == nil {
+		for _, e := range entries {
+			if e.IsDir() == true {
+				output := "bin/handler"
+				buildCmd := []string{"go", "build"}
+				buildCmd = append(buildCmd, "-o", output, "-buildmode=plugin", "./src")
 
-			if verbose {
-				if err := ExecCommandPipe("./"+e.Name(), buildCmd, os.Stdout, os.Stderr); err != nil {
-					return result, err
+				if verbose {
+					if err := ExecCommandPipe("./apps/"+e.Name(), buildCmd, os.Stdout, os.Stderr); err != nil {
+						return result, err
+					}
+				} else {
+					if result, err = ExecCommand("./apps/"+e.Name(), buildCmd); err != nil {
+						return result, err
+					}
 				}
-			} else {
-				if result, err = ExecCommand("./"+e.Name(), buildCmd); err != nil {
-					return result, err
+
+				copyHandlerErr := copyBinaries("./apps/"+e.Name()+"/"+output, "./repository/"+e.Name()+"/handler")
+				if copyHandlerErr != nil {
+					return "", copyHandlerErr
 				}
 			}
+		}
 
-			copyHandlerErr := copyBinaries("./"+e.Name()+"/"+output, "./repository/"+e.Name()+"/handler")
-			if copyHandlerErr != nil {
-				return "", copyHandlerErr
+	} else {
+		for _, e := range entries {
+			if e.IsDir() == true {
+				output := "bin/handler"
+				buildCmd := []string{"go", "build"}
+				buildCmd = append(buildCmd, "-o", output, "-buildmode=plugin", "./src")
+
+				if verbose {
+					if err := ExecCommandPipe("./apps/"+e.Name(), buildCmd, os.Stdout, os.Stderr); err != nil {
+						return result, err
+					}
+				} else {
+					if result, err = ExecCommand("./apps/"+e.Name(), buildCmd); err != nil {
+						return result, err
+					}
+				}
+
+				destination := strings.ReplaceAll(fmt.Sprintf("%s %v", wd, "/"), " ", "")
+
+				copyHandlerErr := copyBinaries("./apps/"+e.Name()+"/"+output, destination+e.Name()+"/handler")
+				if copyHandlerErr != nil {
+					return "", copyHandlerErr
+				}
 			}
 		}
 	}
-
 	fmt.Printf("Handler built in local environment.\n")
 	return result, nil
 }

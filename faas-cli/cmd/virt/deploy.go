@@ -7,14 +7,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
-	"syscall"
 
 	"github.com/Cyy92/HeterogeneousVirtualization/faas-cli/api/git"
 	"github.com/Cyy92/HeterogeneousVirtualization/faas-cli/api/grpc"
 	"github.com/Cyy92/HeterogeneousVirtualization/faas-cli/cmd/log"
 	"github.com/Cyy92/HeterogeneousVirtualization/faas-cli/config"
-	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/spf13/cobra"
 )
@@ -106,18 +103,9 @@ func deploy(gw string, vmName string, domain string, userdata string) error {
 }
 
 func runDeployVM() error {
-	input := bufio.NewReader(os.Stdin)
-	fmt.Print("GitHub Username: ")
-	username, _ := input.ReadString('\n')
+	git.Push()
 
-	fmt.Print("GitHub Password: ")
-	bytePassword, _ := terminal.ReadPassword(int(syscall.Stdin))
-	password := string(bytePassword)
-	fmt.Print("\n")
-
-	git.Push(VM_Name, strings.TrimSpace(username), strings.TrimSpace(password))
-
-	f, _ := os.Open(cloudconfig)
+	f, _ := os.Open("./config/" + cloudconfig)
 
 	reader := bufio.NewReader(f)
 	content, _ := ioutil.ReadAll(reader)
