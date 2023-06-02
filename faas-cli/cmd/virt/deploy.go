@@ -105,7 +105,7 @@ func deploy(gw string, vmName string, domain string, userdata string) error {
 func runDeployVM() error {
 	git.Push()
 
-	f, _ := os.Open("./config/" + cloudconfig)
+	f, _ := os.Open(cloudconfig)
 
 	reader := bufio.NewReader(f)
 	content, _ := ioutil.ReadAll(reader)
