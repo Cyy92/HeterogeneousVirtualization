@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 
 const (
 	FxGateway_Invoke_FullMethodName        = "/pb.FxGateway/Invoke"
+	FxGateway_InvokeVM_FullMethodName      = "/pb.FxGateway/InvokeVM"
 	FxGateway_List_FullMethodName          = "/pb.FxGateway/List"
 	FxGateway_Deploy_FullMethodName        = "/pb.FxGateway/Deploy"
 	FxGateway_DeployVM_FullMethodName      = "/pb.FxGateway/DeployVM"
@@ -37,6 +38,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FxGatewayClient interface {
 	Invoke(ctx context.Context, in *InvokeServiceRequest, opts ...grpc.CallOption) (*Message, error)
+	InvokeVM(ctx context.Context, in *InvokeServiceRequest, opts ...grpc.CallOption) (*Message, error)
 	List(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Functions, error)
 	Deploy(ctx context.Context, in *CreateFunctionRequest, opts ...grpc.CallOption) (*Message, error)
 	DeployVM(ctx context.Context, in *CreateVMRequest, opts ...grpc.CallOption) (*Message, error)
@@ -60,6 +62,15 @@ func NewFxGatewayClient(cc grpc.ClientConnInterface) FxGatewayClient {
 func (c *fxGatewayClient) Invoke(ctx context.Context, in *InvokeServiceRequest, opts ...grpc.CallOption) (*Message, error) {
 	out := new(Message)
 	err := c.cc.Invoke(ctx, FxGateway_Invoke_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fxGatewayClient) InvokeVM(ctx context.Context, in *InvokeServiceRequest, opts ...grpc.CallOption) (*Message, error) {
+	out := new(Message)
+	err := c.cc.Invoke(ctx, FxGateway_InvokeVM_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -161,6 +172,7 @@ func (c *fxGatewayClient) HealthCheck(ctx context.Context, in *Empty, opts ...gr
 // for forward compatibility
 type FxGatewayServer interface {
 	Invoke(context.Context, *InvokeServiceRequest) (*Message, error)
+	InvokeVM(context.Context, *InvokeServiceRequest) (*Message, error)
 	List(context.Context, *Empty) (*Functions, error)
 	Deploy(context.Context, *CreateFunctionRequest) (*Message, error)
 	DeployVM(context.Context, *CreateVMRequest) (*Message, error)
@@ -180,6 +192,9 @@ type UnimplementedFxGatewayServer struct {
 
 func (UnimplementedFxGatewayServer) Invoke(context.Context, *InvokeServiceRequest) (*Message, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Invoke not implemented")
+}
+func (UnimplementedFxGatewayServer) InvokeVM(context.Context, *InvokeServiceRequest) (*Message, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method InvokeVM not implemented")
 }
 func (UnimplementedFxGatewayServer) List(context.Context, *Empty) (*Functions, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method List not implemented")
@@ -238,6 +253,24 @@ func _FxGateway_Invoke_Handler(srv interface{}, ctx context.Context, dec func(in
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(FxGatewayServer).Invoke(ctx, req.(*InvokeServiceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FxGateway_InvokeVM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InvokeServiceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FxGatewayServer).InvokeVM(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FxGateway_InvokeVM_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FxGatewayServer).InvokeVM(ctx, req.(*InvokeServiceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -432,6 +465,10 @@ var FxGateway_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Invoke",
 			Handler:    _FxGateway_Invoke_Handler,
+		},
+		{
+			MethodName: "InvokeVM",
+			Handler:    _FxGateway_InvokeVM_Handler,
 		},
 		{
 			MethodName: "List",
