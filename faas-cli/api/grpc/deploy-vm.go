@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/Cyy92/HeterogeneousVirtualization/faas-cli/config"
 	"github.com/Cyy92/HeterogeneousVirtualization/faas-cli/pb"
@@ -52,7 +54,7 @@ func DeployVM(c DeployVMConfig) error {
 		req.Requests = nil
 	}
 
-	_, statusErr := client.DeployVM(context.Background(), &req)
+	message, statusErr := client.DeployVM(context.Background(), &req)
 	st, ok := status.FromError(statusErr)
 	if !ok {
 		return errors.New("Invaild status error.")
@@ -62,6 +64,21 @@ func DeployVM(c DeployVMConfig) error {
 	}
 	if statusErr != nil {
 		return statusErr
+	}
+
+	for {
+		cmd := exec.Command("ssh", "-o", "StrictHostKeyChecking=no", "root@"+message.Msg, "test -d /binaries && echo true || echo false")
+		output, err := cmd.Output()
+		if err != nil {
+			fmt.Println("No route to host:", err)
+		} else {
+			result := string(output)
+			result = result[:len(result)-1]
+			if result == "true" {
+				break
+			}
+		}
+		time.Sleep(time.Second)
 	}
 
 	return nil
