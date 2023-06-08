@@ -161,7 +161,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	for _, e := range entries {
 		if e.IsDir() == true {
-			executeBin := "cd /binaries/apps/" + e.Name() + " && ./executor &"
+			executeBin := "cd /binaries/" + e.Name() + " && ./executor &"
 			fxVMs.Cmds = append(fxVMs.Cmds, executeBin)
 		}
 	}
