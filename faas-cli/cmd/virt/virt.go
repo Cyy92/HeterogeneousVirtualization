@@ -31,7 +31,7 @@ func init() {
 	VirtCmd.AddCommand(initCmd)
 	VirtCmd.AddCommand(buildCmd)
 	VirtCmd.AddCommand(deployVMCmd)
-	//FunctionCmd.AddCommand(deleteCmd)
+	VirtCmd.AddCommand(deleteCmd)
 	//FunctionCmd.AddCommand(listCmd)
 	VirtCmd.AddCommand(callCmd)
 	//FunctionCmd.AddCommand(infoCmd)

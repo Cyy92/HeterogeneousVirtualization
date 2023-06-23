@@ -25,6 +25,7 @@ const (
 	FxGateway_Deploy_FullMethodName        = "/pb.FxGateway/Deploy"
 	FxGateway_DeployVM_FullMethodName      = "/pb.FxGateway/DeployVM"
 	FxGateway_Delete_FullMethodName        = "/pb.FxGateway/Delete"
+	FxGateway_DeleteVM_FullMethodName      = "/pb.FxGateway/DeleteVM"
 	FxGateway_Update_FullMethodName        = "/pb.FxGateway/Update"
 	FxGateway_GetMeta_FullMethodName       = "/pb.FxGateway/GetMeta"
 	FxGateway_GetLog_FullMethodName        = "/pb.FxGateway/GetLog"
@@ -43,6 +44,7 @@ type FxGatewayClient interface {
 	Deploy(ctx context.Context, in *CreateFunctionRequest, opts ...grpc.CallOption) (*Message, error)
 	DeployVM(ctx context.Context, in *CreateVMRequest, opts ...grpc.CallOption) (*Message, error)
 	Delete(ctx context.Context, in *DeleteFunctionRequest, opts ...grpc.CallOption) (*Message, error)
+	DeleteVM(ctx context.Context, in *DeleteVMRequest, opts ...grpc.CallOption) (*Message, error)
 	Update(ctx context.Context, in *CreateFunctionRequest, opts ...grpc.CallOption) (*Message, error)
 	GetMeta(ctx context.Context, in *FunctionRequest, opts ...grpc.CallOption) (*Function, error)
 	GetLog(ctx context.Context, in *FunctionRequest, opts ...grpc.CallOption) (*Message, error)
@@ -113,6 +115,15 @@ func (c *fxGatewayClient) Delete(ctx context.Context, in *DeleteFunctionRequest,
 	return out, nil
 }
 
+func (c *fxGatewayClient) DeleteVM(ctx context.Context, in *DeleteVMRequest, opts ...grpc.CallOption) (*Message, error) {
+	out := new(Message)
+	err := c.cc.Invoke(ctx, FxGateway_DeleteVM_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *fxGatewayClient) Update(ctx context.Context, in *CreateFunctionRequest, opts ...grpc.CallOption) (*Message, error) {
 	out := new(Message)
 	err := c.cc.Invoke(ctx, FxGateway_Update_FullMethodName, in, out, opts...)
@@ -177,6 +188,7 @@ type FxGatewayServer interface {
 	Deploy(context.Context, *CreateFunctionRequest) (*Message, error)
 	DeployVM(context.Context, *CreateVMRequest) (*Message, error)
 	Delete(context.Context, *DeleteFunctionRequest) (*Message, error)
+	DeleteVM(context.Context, *DeleteVMRequest) (*Message, error)
 	Update(context.Context, *CreateFunctionRequest) (*Message, error)
 	GetMeta(context.Context, *FunctionRequest) (*Function, error)
 	GetLog(context.Context, *FunctionRequest) (*Message, error)
@@ -207,6 +219,9 @@ func (UnimplementedFxGatewayServer) DeployVM(context.Context, *CreateVMRequest) 
 }
 func (UnimplementedFxGatewayServer) Delete(context.Context, *DeleteFunctionRequest) (*Message, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
+}
+func (UnimplementedFxGatewayServer) DeleteVM(context.Context, *DeleteVMRequest) (*Message, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteVM not implemented")
 }
 func (UnimplementedFxGatewayServer) Update(context.Context, *CreateFunctionRequest) (*Message, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Update not implemented")
@@ -343,6 +358,24 @@ func _FxGateway_Delete_Handler(srv interface{}, ctx context.Context, dec func(in
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(FxGatewayServer).Delete(ctx, req.(*DeleteFunctionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FxGateway_DeleteVM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteVMRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FxGatewayServer).DeleteVM(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FxGateway_DeleteVM_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FxGatewayServer).DeleteVM(ctx, req.(*DeleteVMRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -485,6 +518,10 @@ var FxGateway_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Delete",
 			Handler:    _FxGateway_Delete_Handler,
+		},
+		{
+			MethodName: "DeleteVM",
+			Handler:    _FxGateway_DeleteVM_Handler,
 		},
 		{
 			MethodName: "Update",
