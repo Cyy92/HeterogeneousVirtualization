@@ -18,7 +18,7 @@ spec:
         - name: regcred
       containers:
       - name: fxgateway
-        image: 10.0.1.150:5000/2021_hv/fxgateway:1.4
+        image: 10.0.1.150:5000/2021_hv/fxgateway:1.5
         imagePullPolicy: Always
         env:
         - name: FUNCTION_NAMESPACE
