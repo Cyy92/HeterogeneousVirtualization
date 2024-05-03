@@ -3,16 +3,6 @@
   package_facts:
     manager: auto
 
-- name: Remove packages
-  when: "'nvidia-container-runtime' in ansible_facts.packages or 'nvidia-docker2' in ansible_facts.packages"
-  apt:
-    name:
-      - nvidia-docker2
-      - nvidia-container-runtime
-    state: absent
-    autoremove: yes
-    purge: yes
-
 - name: Add key
   apt_key:
     url: "{{ nvidia_container_runtime_repo_gpg_url }}"
@@ -48,6 +38,16 @@
     dest: /usr/share/containers/oci/hooks.d/oci-nvidia-hook.json
     owner: root
     group: root
+
+- name: Configure the container runtime by using the nvidia-ctk command
+  become: true
+  when: "'nvidia-container-runtime' not in ansible_facts.packages"
+  command: nvidia-ctk runtime configure --runtime=crio
+
+- name: Generate file to set the nvidia-container-runtime as the default low-level OCI runtime
+  become: true
+  when: "'nvidia-container-runtime' not in ansible_facts.packages"
+  command: nvidia-ctk runtime configure --runtime=crio --set-as-default --config=/etc/crio/crio.conf.d/99-nvidia.conf
 
 - name: Restart cri-o
   become: true
