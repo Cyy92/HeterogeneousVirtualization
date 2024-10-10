@@ -32,6 +32,7 @@ type DeployConfig struct {
 
 	MinReplicas int32
 	MaxReplicas int32
+	Token       string
 	Update      bool
 	Replace     bool
 }
@@ -67,6 +68,7 @@ func Deploy(c DeployConfig) error {
 		Annotations: c.Annotations,
 		MinReplicas: c.MinReplicas,
 		MaxReplicas: c.MaxReplicas,
+		Token:       c.Token,
 	}
 
 	hasLimits := false

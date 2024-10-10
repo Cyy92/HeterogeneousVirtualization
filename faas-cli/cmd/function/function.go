@@ -27,6 +27,7 @@ var FunctionCmd = &cobra.Command{
 }
 
 func init() {
+	FunctionCmd.AddCommand(authCmd)
 	FunctionCmd.AddCommand(initCmd)
 	FunctionCmd.AddCommand(buildCmd)
 	FunctionCmd.AddCommand(runCmd)

@@ -7,8 +7,8 @@ const (
 	DefaultProviderName = "faas"
 	DefaultConfigFile   = "config.yaml"
 	DefaultCloudConfig  = "cloudconfig.yaml"
-	DefaultRegistry     = "10.0.1.150:5000/openfx"
-	DefaultGatewayURL   = ":31113"
+	DefaultRegistry     = "10.0.1.150:5000/cyy"
+	DefaultGatewayURL   = "localhost:31113"
 	//FIXME
 	DefaultRuntimeRepo = "https://github.com/keti-openfx/OpenFx-runtime.git"
 	DefaultRuntimeDir  = "./runtime"
@@ -28,7 +28,8 @@ const (
 )
 
 var (
-	DefaultConstraints = []string{"nodetype=cpunode"}
+	DefaultConstraints  = []string{"nodetype=cpunode"}
+	DefaultOAuth2Server = "http://10.0.2.101:9096"
 )
 
 type VirtualMachines struct {

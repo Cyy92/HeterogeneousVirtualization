@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/Cyy92/HeterogeneousVirtualization/faas-cli/api/grpc"
@@ -19,6 +21,7 @@ var (
 	update        bool
 	deployVerbose bool
 	registry      string
+	token         string
 	minreplicas   int32
 	maxreplicas   int32
 )
@@ -26,12 +29,14 @@ var (
 func init() {
 	deployCmd.Flags().StringVarP(&configFile, "config", "f", "", "Path to YAML config file describing function(s)")
 	deployCmd.Flags().StringVarP(&registry, "registry", "", "", "Docker private registry url")
+	deployCmd.Flags().StringVarP(&token, "token", "", "", "Access token for deploying function(s)")
 	deployCmd.Flags().BoolVar(&replace, "replace", false, "Remove and re-create existing function(s)")
 	deployCmd.Flags().BoolVar(&update, "update", true, "Perform rolling update on existing function(s)")
 	deployCmd.Flags().BoolVarP(&deployVerbose, "deployverbose", "v", false, "Print function build log")
 	deployCmd.Flags().Int32Var(&minreplicas, "min", 1, "Minimum Replicas for Function")
 	deployCmd.Flags().Int32Var(&maxreplicas, "max", 1, "Maximum Replicas for Function")
 	deployCmd.MarkFlagRequired("config")
+	deployCmd.MarkFlagRequired("token")
 }
 
 var deployCmd = &cobra.Command{
@@ -59,6 +64,15 @@ var deployCmd = &cobra.Command{
 }
 
 func preRunDeploy(cmd *cobra.Command, args []string) error {
+	params := url.Values{}
+	params.Add("access_token", token)
+
+	apiUrl := fmt.Sprintf(config.DefaultOAuth2Server+"/verify?%s", params.Encode())
+	resp, err := http.Get(apiUrl)
+	if err != nil {
+		return fmt.Errorf("Token verify failed: %s", err)
+	}
+	defer resp.Body.Close()
 
 	if update && replace {
 		return errors.New(`one of "--update" flag or "--replace" flag must be false\n`)
@@ -120,6 +134,7 @@ func deploy(gw string, function config.Function, update, replace bool, minreplic
 
 		MinReplicas: minreplicas,
 		MaxReplicas: maxreplicas,
+		Token:       token,
 		Update:      update,
 		Replace:     replace,
 	}
